@@ -29,7 +29,7 @@ import java.lang.Process;
 
 public class Widget extends AppWidgetProvider {
 
-    public static String TAG = "HDMIOnOff";
+    public static String TAG = "HDMI_Toggle";
     public static String ACTION_TOGGLE = "su.cujo.android.jbx.hdmi.Widget.ACTION_TOGGLE";
     static String ctl = "/sys/kernel/hdmi/hdmi_active";
     static String[] cmdGet = {"su","-c","cat " + ctl};

@@ -34,31 +34,45 @@ public class Widget extends AppWidgetProvider {
     static String ctl = "/sys/kernel/hdmi/hdmi_active";
     static String[] cmdGet = {"su","-c","cat " + ctl};
     static String[] cmdToggle = {"su","-c","echo $((!$(cat " + ctl + "))) | tee " + ctl};
+    static String[] cmdToggleOff = {"su","-c","echo 0 | tee " + ctl};
+    static int state = -1;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
-        updateHdmiState(context, false);
+       updateHdmiState(context, -1);
     }
+
 
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent.getAction().equals(ACTION_TOGGLE)) {
-            updateHdmiState(context, true);
+            updateHdmiState(context, 1);
         } else {
             super.onReceive(context, intent);
         }
     }
 
-    private void updateHdmiState(Context context, boolean toggle)
+    @Override
+    public void onDisabled(Context context){
+        if (state==0)
+            updateHdmiState(context, 1);
+    }
+
+    private void updateHdmiState(Context context, int toggle)
     {
-        int state = -1;
         try {
-            Process proc = Runtime.getRuntime().exec(toggle ? cmdToggle : cmdGet);
+            Process proc;
+            if (toggle < 0)
+                proc = Runtime.getRuntime().exec(cmdToggleOff);              
+            else if (toggle == 1)
+                proc = Runtime.getRuntime().exec(cmdToggle);
+            else
+                proc = Runtime.getRuntime().exec(cmdGet);
+
             proc.waitFor();
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
             String output = stdInput.readLine();
             state = Integer.parseInt(output);
-
             RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.widget);
             remoteViews.setImageViewResource(R.id.icon, state == 1 ? R.drawable.icon_on : R.drawable.icon);
             Intent active = new Intent(context, Widget.class);
@@ -68,7 +82,7 @@ public class Widget extends AppWidgetProvider {
             ComponentName cn = new ComponentName(context, Widget.class);
             AppWidgetManager.getInstance(context).updateAppWidget(cn, remoteViews);
 
-            Toast.makeText(context, "HDMI is " + (state == 1 ? "on" : "off"), Toast.LENGTH_SHORT).show();
+//            Toast.makeText(context, "HDMI is " + (state == 1 ? "on" : "off"), Toast.LENGTH_SHORT).show();
 
         } catch (IOException e) {
             e.printStackTrace();

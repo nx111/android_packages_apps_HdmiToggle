@@ -11,6 +11,5 @@
             android:clickable="true"
             android:focusable="true"
             android:src="@drawable/icon"
-            android:background="@drawable/icon_background"
             android:layout_gravity="center" />
 </LinearLayout>

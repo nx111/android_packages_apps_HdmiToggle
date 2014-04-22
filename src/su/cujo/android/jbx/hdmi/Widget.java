@@ -20,33 +20,36 @@ import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 import android.widget.Toast;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.lang.Exception;
-import java.lang.Runtime;
-import java.lang.Process;
 
 public class Widget extends AppWidgetProvider {
 
     public static String TAG = "HDMI_Toggle";
     public static String ACTION_TOGGLE = "su.cujo.android.jbx.hdmi.Widget.ACTION_TOGGLE";
+    
+    private static final int modeOff = 0;
+    private static final int modeOn = 1;
+    private static final int modeGet = 2;
+    private static final int modeToggle = 3;
+
     static String ctl = "/sys/kernel/hdmi/hdmi_active";
-    static String[] cmdGet = {"su","-c","cat " + ctl};
-    static String[] cmdToggle = {"su","-c","echo $((!$(cat " + ctl + "))) | tee " + ctl};
-    static String[] cmdToggleOff = {"su","-c","echo 0 | tee " + ctl};
     static int state = -1;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
-       updateHdmiState(context, -1);
+       updateHdmiState(context, modeOff);
     }
 
 
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent.getAction().equals(ACTION_TOGGLE)) {
-            updateHdmiState(context, 1);
+            updateHdmiState(context, modeToggle);
         } else {
             super.onReceive(context, intent);
         }
@@ -55,24 +58,37 @@ public class Widget extends AppWidgetProvider {
     @Override
     public void onDisabled(Context context){
         if (state==0)
-            updateHdmiState(context, 1);
+            updateHdmiState(context, modeOn);
     }
 
     private void updateHdmiState(Context context, int toggle)
     {
         try {
-            Process proc;
-            if (toggle < 0)
-                proc = Runtime.getRuntime().exec(cmdToggleOff);              
-            else if (toggle == 1)
-                proc = Runtime.getRuntime().exec(cmdToggle);
-            else
-                proc = Runtime.getRuntime().exec(cmdGet);
+            BufferedReader in = new BufferedReader(new FileReader(ctl));
+            BufferedWriter out = new BufferedWriter(new FileWriter(ctl, true));
+            String line;
+            in.mark(80);
+            line = in.readLine();
+            if (line != null)
+                state = Integer.parseInt(line);
 
-            proc.waitFor();
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String output = stdInput.readLine();
-            state = Integer.parseInt(output);
+            if (toggle == modeOff && line != null  && state != 0 )
+                out.write("0");
+            else if (toggle == modeOn && line != null  && state != 1 ){
+                out.write("1");
+            }              
+            else if (toggle == modeToggle && line != null && state == 0){
+                out.write("1");
+            }
+            else if (toggle == modeToggle && line != null && state == 0){
+                out.write("0");
+            }
+            out.close();
+            in.reset();
+            line = in.readLine();
+            in.close();
+
+            state = Integer.parseInt(line);
             RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.widget);
             remoteViews.setImageViewResource(R.id.icon, state == 1 ? R.drawable.icon_on : R.drawable.icon);
             Intent active = new Intent(context, Widget.class);
